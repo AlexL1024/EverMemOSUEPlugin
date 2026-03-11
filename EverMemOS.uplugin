@@ -1,0 +1,29 @@
+{
+	"FileVersion": 3,
+	"Version": 1,
+	"VersionName": "0.1.0",
+	"FriendlyName": "EverMemOS",
+	"Description": "Unreal Engine plugin for Evermind Cloud API - Memory-as-a-Service for AI-powered games",
+	"Category": "AI",
+	"CreatedBy": "TonyL",
+	"CreatedByURL": "",
+	"DocsURL": "",
+	"MarketplaceURL": "",
+	"SupportURL": "",
+	"CanContainContent": false,
+	"IsBetaVersion": true,
+	"IsExperimentalVersion": false,
+	"Installed": false,
+	"Modules": [
+		{
+			"Name": "EverMemOSRuntime",
+			"Type": "Runtime",
+			"LoadingPhase": "Default"
+		},
+		{
+			"Name": "EverMemOSEditor",
+			"Type": "Editor",
+			"LoadingPhase": "Default"
+		}
+	]
+}
