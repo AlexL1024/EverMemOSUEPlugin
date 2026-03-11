@@ -11,6 +11,7 @@
 #include "EverMemOS/Models/EverMemOSSearchTypes.h"
 #include "EverMemOS/Models/EverMemOSConvoMetaTypes.h"
 #include "EverMemOS/EverMemOSErrors.h"
+#include "EverMemOS/EverMemOSSettings.h"
 #include "EverMemOSBlueprintLibrary.generated.h"
 
 /** Blueprint utility functions for EverMemOS */
@@ -105,4 +106,12 @@ public:
 	/** Convert scene type enum to API string */
 	UFUNCTION(BlueprintPure, Category = "EverMemOS|Utilities")
 	static FString SceneTypeToString(EEverMemOSSceneType Type);
+
+	/** Switch the deployment profile (Cloud or Local). Updates BaseURL, ApiVersion, and auth automatically. */
+	UFUNCTION(BlueprintCallable, Category = "EverMemOS|Connection", meta = (WorldContext = "WorldContextObject"))
+	static void SetDeploymentProfile(UObject* WorldContextObject, EEverMemOSDeploymentProfile Profile);
+
+	/** Get the current deployment profile */
+	UFUNCTION(BlueprintPure, Category = "EverMemOS|Connection")
+	static EEverMemOSDeploymentProfile GetDeploymentProfile();
 };

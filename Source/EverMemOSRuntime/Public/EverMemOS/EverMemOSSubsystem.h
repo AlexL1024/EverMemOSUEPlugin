@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Subsystems/GameInstanceSubsystem.h"
+#include "EverMemOSSettings.h"
 #include "EverMemOSErrors.h"
 #include "Models/EverMemOSHealthTypes.h"
 #include "Models/EverMemOSAddMemoryTypes.h"
@@ -87,6 +88,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "EverMemOS|Memory",
 		meta = (DeprecatedFunction, DeprecationMessage = "Use the EverMemOS SearchMemories async Blueprint node instead."))
 	void K2_Search(const FEverMemOSSearchParams& Params);
+
+	/** Switch deployment profile at runtime (rebuilds the HTTP client) */
+	UFUNCTION(BlueprintCallable, Category = "EverMemOS|Connection")
+	void SetDeploymentProfile(EEverMemOSDeploymentProfile Profile);
 
 	/** Cancel all active requests */
 	UFUNCTION(BlueprintCallable, Category = "EverMemOS|System")

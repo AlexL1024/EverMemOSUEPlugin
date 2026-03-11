@@ -202,3 +202,31 @@ FString UEverMemOSBlueprintLibrary::SceneTypeToString(EEverMemOSSceneType Type)
 	default: return TEXT("assistant");
 	}
 }
+
+void UEverMemOSBlueprintLibrary::SetDeploymentProfile(UObject* WorldContextObject, EEverMemOSDeploymentProfile Profile)
+{
+	if (!WorldContextObject)
+	{
+		return;
+	}
+
+	UWorld* World = GEngine ? GEngine->GetWorldFromContextObject(WorldContextObject, EGetWorldErrorMode::ReturnNull) : nullptr;
+	if (!World)
+	{
+		return;
+	}
+
+	if (UGameInstance* GameInstance = World->GetGameInstance())
+	{
+		if (UEverMemOSSubsystem* Subsystem = GameInstance->GetSubsystem<UEverMemOSSubsystem>())
+		{
+			Subsystem->SetDeploymentProfile(Profile);
+		}
+	}
+}
+
+EEverMemOSDeploymentProfile UEverMemOSBlueprintLibrary::GetDeploymentProfile()
+{
+	const UEverMemOSSettings* Settings = GetDefault<UEverMemOSSettings>();
+	return Settings ? Settings->DeploymentProfile : EEverMemOSDeploymentProfile::Cloud;
+}

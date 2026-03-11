@@ -5,6 +5,7 @@
 #include "EverMemOS/EverMemOSLog.h"
 #include "EverMemOS/Auth/EverMemOSBearerAuth.h"
 #include "EverMemOS/Auth/EverMemOSHMACAuth.h"
+#include "EverMemOS/Auth/EverMemOSNoAuth.h"
 #include "EverMemOS/Http/EverMemOSHttpClient.h"
 #include "EverMemOS/Blueprint/EverMemOSBlueprintLibrary.h"
 #include "Dom/JsonObject.h"
@@ -119,12 +120,14 @@ void UEverMemOSSubsystem::RebuildClient()
 
 	TSharedPtr<IEverMemOSAuthProvider> Auth = CreateAuthProvider();
 	FEverMemOSRetryPolicy Policy(Settings->MaxRetries, Settings->RetryDelaySeconds);
+	const FString StatusPath = UEverMemOSSettings::GetStatusPathSegment(Settings->DeploymentProfile);
 
 	HttpClient->Configure(Settings->BaseURL, Settings->ApiVersion,
-		Settings->TimeoutSeconds, Auth, Policy);
+		StatusPath, Settings->TimeoutSeconds, Auth, Policy);
 
-	UE_LOG(LogEverMemOS, Log, TEXT("EverMemOS client configured: %s/api/%s"),
-			*Settings->BaseURL, *Settings->ApiVersion);
+	UE_LOG(LogEverMemOS, Log, TEXT("EverMemOS client configured: %s/api/%s (profile=%s)"),
+			*Settings->BaseURL, *Settings->ApiVersion,
+			Settings->DeploymentProfile == EEverMemOSDeploymentProfile::Local ? TEXT("Local") : TEXT("Cloud"));
 }
 
 void UEverMemOSSubsystem::SetRuntimeBearerToken(const FString& Token)
@@ -155,6 +158,12 @@ TSharedPtr<IEverMemOSAuthProvider> UEverMemOSSubsystem::CreateAuthProvider() con
 	if (!Settings)
 	{
 		return nullptr;
+	}
+
+	// Local deployment does not require authentication
+	if (!UEverMemOSSettings::RequiresAuth(Settings->DeploymentProfile))
+	{
+		return MakeShared<FEverMemOSNoAuth>();
 	}
 
 	const FString EffectiveBearer = bHasRuntimeBearerToken ? RuntimeBearerToken : Settings->BearerToken;
@@ -597,5 +606,15 @@ void UEverMemOSSubsystem::CancelAllRequests()
 	if (HttpClient.IsValid())
 	{
 		HttpClient->CancelAllRequests();
+	}
+}
+
+void UEverMemOSSubsystem::SetDeploymentProfile(EEverMemOSDeploymentProfile Profile)
+{
+	UEverMemOSSettings* Settings = GetMutableDefault<UEverMemOSSettings>();
+	if (Settings)
+	{
+		Settings->DeploymentProfile = Profile;
+		Settings->ApplyProfileDefaults();
 	}
 }

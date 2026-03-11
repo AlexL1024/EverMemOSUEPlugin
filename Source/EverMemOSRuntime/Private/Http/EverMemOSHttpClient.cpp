@@ -56,11 +56,13 @@ void FEverMemOSHttpClient::CancelRetryTimers()
 }
 
 void FEverMemOSHttpClient::Configure(const FString& InBaseURL, const FString& InApiVersion,
+	const FString& InStatusPathSegment,
 	float InTimeout, TSharedPtr<IEverMemOSAuthProvider> InAuthProvider,
 	const FEverMemOSRetryPolicy& InRetryPolicy)
 {
 	BaseURL = InBaseURL;
 	ApiVersion = InApiVersion;
+	StatusPathSegment = InStatusPathSegment;
 	Timeout = InTimeout;
 	AuthProvider = InAuthProvider;
 	RetryPolicy = InRetryPolicy;

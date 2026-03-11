@@ -34,8 +34,12 @@ public:
 	~FEverMemOSHttpClient();
 
 	void Configure(const FString& InBaseURL, const FString& InApiVersion,
+		const FString& InStatusPathSegment,
 		float InTimeout, TSharedPtr<IEverMemOSAuthProvider> InAuthProvider,
 		const FEverMemOSRetryPolicy& InRetryPolicy);
+
+	/** Get the status path segment ("status" for Cloud, "stats" for Local) */
+	const FString& GetStatusPathSegment() const { return StatusPathSegment; }
 
 	/** Send a GET request */
 	FHttpRequestRef Get(const FString& Endpoint, const TMap<FString, FString>& QueryParams,
@@ -89,6 +93,7 @@ private:
 
 	FString BaseURL;
 	FString ApiVersion;
+	FString StatusPathSegment;
 	float Timeout;
 	TSharedPtr<IEverMemOSAuthProvider> AuthProvider;
 	FEverMemOSRetryPolicy RetryPolicy;
