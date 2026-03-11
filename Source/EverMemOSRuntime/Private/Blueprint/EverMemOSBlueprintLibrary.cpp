@@ -6,6 +6,26 @@
 #include "Engine/Engine.h"
 #include "Engine/GameInstance.h"
 
+namespace
+{
+UEverMemOSSubsystem* GetSubsystemFromContext(UObject* WorldContextObject)
+{
+	if (!WorldContextObject || !GEngine)
+	{
+		return nullptr;
+	}
+
+	UWorld* World = GEngine->GetWorldFromContextObject(WorldContextObject, EGetWorldErrorMode::ReturnNull);
+	if (!World)
+	{
+		return nullptr;
+	}
+
+	UGameInstance* GameInstance = World->GetGameInstance();
+	return GameInstance ? GameInstance->GetSubsystem<UEverMemOSSubsystem>() : nullptr;
+}
+}
+
 void UEverMemOSBlueprintLibrary::SetBearerToken(const FString& Token)
 {
 	if (UEverMemOSSettings* Settings = GetMutableDefault<UEverMemOSSettings>())
@@ -24,45 +44,17 @@ void UEverMemOSBlueprintLibrary::SetHMACSecret(const FString& Secret)
 
 void UEverMemOSBlueprintLibrary::SetBearerTokenRuntime(UObject* WorldContextObject, const FString& Token)
 {
-	if (!WorldContextObject)
+	if (UEverMemOSSubsystem* Subsystem = GetSubsystemFromContext(WorldContextObject))
 	{
-		return;
-	}
-
-	UWorld* World = GEngine ? GEngine->GetWorldFromContextObject(WorldContextObject, EGetWorldErrorMode::ReturnNull) : nullptr;
-	if (!World)
-	{
-		return;
-	}
-
-	if (UGameInstance* GameInstance = World->GetGameInstance())
-	{
-		if (UEverMemOSSubsystem* Subsystem = GameInstance->GetSubsystem<UEverMemOSSubsystem>())
-		{
-			Subsystem->SetRuntimeBearerToken(Token);
-		}
+		Subsystem->SetRuntimeBearerToken(Token);
 	}
 }
 
 void UEverMemOSBlueprintLibrary::SetHMACSecretRuntime(UObject* WorldContextObject, const FString& Secret)
 {
-	if (!WorldContextObject)
+	if (UEverMemOSSubsystem* Subsystem = GetSubsystemFromContext(WorldContextObject))
 	{
-		return;
-	}
-
-	UWorld* World = GEngine ? GEngine->GetWorldFromContextObject(WorldContextObject, EGetWorldErrorMode::ReturnNull) : nullptr;
-	if (!World)
-	{
-		return;
-	}
-
-	if (UGameInstance* GameInstance = World->GetGameInstance())
-	{
-		if (UEverMemOSSubsystem* Subsystem = GameInstance->GetSubsystem<UEverMemOSSubsystem>())
-		{
-			Subsystem->SetRuntimeHMACSecret(Secret);
-		}
+		Subsystem->SetRuntimeHMACSecret(Secret);
 	}
 }
 
@@ -205,23 +197,9 @@ FString UEverMemOSBlueprintLibrary::SceneTypeToString(EEverMemOSSceneType Type)
 
 void UEverMemOSBlueprintLibrary::SetDeploymentProfile(UObject* WorldContextObject, EEverMemOSDeploymentProfile Profile)
 {
-	if (!WorldContextObject)
+	if (UEverMemOSSubsystem* Subsystem = GetSubsystemFromContext(WorldContextObject))
 	{
-		return;
-	}
-
-	UWorld* World = GEngine ? GEngine->GetWorldFromContextObject(WorldContextObject, EGetWorldErrorMode::ReturnNull) : nullptr;
-	if (!World)
-	{
-		return;
-	}
-
-	if (UGameInstance* GameInstance = World->GetGameInstance())
-	{
-		if (UEverMemOSSubsystem* Subsystem = GameInstance->GetSubsystem<UEverMemOSSubsystem>())
-		{
-			Subsystem->SetDeploymentProfile(Profile);
-		}
+		Subsystem->SetDeploymentProfile(Profile);
 	}
 }
 

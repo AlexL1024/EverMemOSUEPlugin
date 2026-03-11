@@ -113,11 +113,11 @@ FString FEverMemOSHttpClient::BuildURLRaw(const FString& Path) const
 	return NormalizedBase + NormalizedPath;
 }
 
-FHttpRequestRef FEverMemOSHttpClient::CreateRequest(const FString& Verb, const FString& Endpoint,
+FHttpRequestRef FEverMemOSHttpClient::CreateRequestInternal(const FString& Verb, const FString& URL,
 	TSharedPtr<FJsonObject> Body)
 {
 	FHttpRequestRef Request = FHttpModule::Get().CreateRequest();
-	Request->SetURL(BuildURL(Endpoint));
+	Request->SetURL(URL);
 	Request->SetVerb(Verb);
 	Request->SetHeader(TEXT("Content-Type"), TEXT("application/json"));
 	Request->SetHeader(TEXT("Accept"), TEXT("application/json"));
@@ -125,9 +125,7 @@ FHttpRequestRef FEverMemOSHttpClient::CreateRequest(const FString& Verb, const F
 
 	if (Body.IsValid())
 	{
-		// Convert PascalCase keys to snake_case for API
 		TSharedPtr<FJsonObject> SnakeBody = FEverMemOSJsonHelper::ConvertKeysToSnake(Body);
-
 		FString BodyString;
 		TSharedRef<TJsonWriter<>> Writer = TJsonWriterFactory<>::Create(&BodyString);
 		FJsonSerializer::Serialize(SnakeBody.ToSharedRef(), Writer);
@@ -142,49 +140,43 @@ FHttpRequestRef FEverMemOSHttpClient::CreateRequest(const FString& Verb, const F
 	return Request;
 }
 
-FHttpRequestRef FEverMemOSHttpClient::CreateRawRequest(const FString& Verb, const FString& Path, TSharedPtr<FJsonObject> Body)
+FHttpRequestRef FEverMemOSHttpClient::SendWithBody(const FString& Verb, const FString& Endpoint,
+	TSharedPtr<FJsonObject> Body, EEverMemOSResponseMode Mode, FOnHttpJsonResponse OnComplete)
 {
-	FHttpRequestRef Request = FHttpModule::Get().CreateRequest();
-	Request->SetURL(BuildURLRaw(Path));
-	Request->SetVerb(Verb);
-	Request->SetHeader(TEXT("Content-Type"), TEXT("application/json"));
-	Request->SetHeader(TEXT("Accept"), TEXT("application/json"));
-	Request->SetTimeout(Timeout);
+	FHttpRequestRef Request = CreateRequestInternal(Verb, BuildURL(Endpoint), Body);
+	ActiveRequests.Add(Request);
 
-	if (Body.IsValid())
-	{
-		// Convert PascalCase keys to snake_case for API
-		TSharedPtr<FJsonObject> SnakeBody = FEverMemOSJsonHelper::ConvertKeysToSnake(Body);
+	TWeakPtr<FEverMemOSHttpClient> WeakSelf = AsShared();
+	Request->OnProcessRequestComplete().BindLambda(
+		[WeakSelf, Mode, OnComplete, Verb, Endpoint, Body](FHttpRequestPtr Req, FHttpResponsePtr Resp, bool bSuccess)
+		{
+			if (TSharedPtr<FEverMemOSHttpClient> Self = WeakSelf.Pin())
+			{
+				Self->ProcessResponse(Req, Resp, bSuccess, Mode, OnComplete, 0, Verb, Endpoint, Body);
+			}
+		});
 
-		FString BodyString;
-		TSharedRef<TJsonWriter<>> Writer = TJsonWriterFactory<>::Create(&BodyString);
-		FJsonSerializer::Serialize(SnakeBody.ToSharedRef(), Writer);
-		Request->SetContentAsString(BodyString);
-	}
-
-	if (AuthProvider.IsValid())
-	{
-		AuthProvider->ApplyAuth(Request);
-	}
-
+	Request->ProcessRequest();
 	return Request;
+}
+
+void FEverMemOSHttpClient::RemoveActiveRequest(FHttpRequestPtr Request)
+{
+	for (int32 i = ActiveRequests.Num() - 1; i >= 0; --i)
+	{
+		if (&ActiveRequests[i].Get() == Request.Get())
+		{
+			ActiveRequests.RemoveAt(i);
+			break;
+		}
+	}
 }
 
 FHttpRequestRef FEverMemOSHttpClient::Get(const FString& Endpoint,
 	const TMap<FString, FString>& QueryParams,
 	EEverMemOSResponseMode Mode, FOnHttpJsonResponse OnComplete)
 {
-	FHttpRequestRef Request = FHttpModule::Get().CreateRequest();
-	Request->SetURL(BuildURL(Endpoint, QueryParams));
-	Request->SetVerb(TEXT("GET"));
-	Request->SetHeader(TEXT("Accept"), TEXT("application/json"));
-	Request->SetTimeout(Timeout);
-
-	if (AuthProvider.IsValid())
-	{
-		AuthProvider->ApplyAuth(Request);
-	}
-
+	FHttpRequestRef Request = CreateRequestInternal(TEXT("GET"), BuildURL(Endpoint, QueryParams), nullptr);
 	ActiveRequests.Add(Request);
 
 	TWeakPtr<FEverMemOSHttpClient> WeakSelf = AsShared();
@@ -203,53 +195,16 @@ FHttpRequestRef FEverMemOSHttpClient::Get(const FString& Endpoint,
 
 FHttpRequestRef FEverMemOSHttpClient::GetRaw(const FString& Path, EEverMemOSResponseMode Mode, FOnHttpJsonResponse OnComplete)
 {
-	FHttpRequestRef Request = FHttpModule::Get().CreateRequest();
-	Request->SetURL(BuildURLRaw(Path));
-	Request->SetVerb(TEXT("GET"));
-	Request->SetHeader(TEXT("Accept"), TEXT("application/json"));
-	Request->SetTimeout(Timeout);
-
-	if (AuthProvider.IsValid())
-	{
-		AuthProvider->ApplyAuth(Request);
-	}
-
+	FHttpRequestRef Request = CreateRequestInternal(TEXT("GET"), BuildURLRaw(Path), nullptr);
 	ActiveRequests.Add(Request);
 
 	TWeakPtr<FEverMemOSHttpClient> WeakSelf = AsShared();
 	Request->OnProcessRequestComplete().BindLambda(
-		[WeakSelf, Mode, OnComplete](FHttpRequestPtr Req, FHttpResponsePtr Resp, bool bSuccess)
+		[WeakSelf, Mode, OnComplete, Path](FHttpRequestPtr Req, FHttpResponsePtr Resp, bool bSuccess)
 		{
 			if (TSharedPtr<FEverMemOSHttpClient> Self = WeakSelf.Pin())
 			{
-				// Remove from tracked requests
-				for (int32 i = Self->ActiveRequests.Num() - 1; i >= 0; --i)
-				{
-					if (&Self->ActiveRequests[i].Get() == Req.Get())
-					{
-						Self->ActiveRequests.RemoveAt(i);
-						break;
-					}
-				}
-
-				if (!bSuccess || !Resp.IsValid())
-				{
-					FEverMemOSError Error = FEverMemOSError::NetworkError(TEXT("Connection failed"));
-					AsyncTask(ENamedThreads::GameThread, [OnComplete, Error]()
-					{
-						OnComplete.ExecuteIfBound(nullptr, Error);
-					});
-					return;
-				}
-
-				TSharedPtr<FJsonObject> Result;
-				FEverMemOSError Error;
-				Self->DecodeResponse(Resp, Mode, Result, Error);
-
-				AsyncTask(ENamedThreads::GameThread, [OnComplete, Result, Error]()
-				{
-					OnComplete.ExecuteIfBound(Result, Error);
-				});
+				Self->ProcessResponse(Req, Resp, bSuccess, Mode, OnComplete, 0, TEXT("GET"), Path, nullptr);
 			}
 		});
 
@@ -260,61 +215,19 @@ FHttpRequestRef FEverMemOSHttpClient::GetRaw(const FString& Path, EEverMemOSResp
 FHttpRequestRef FEverMemOSHttpClient::Post(const FString& Endpoint,
 	TSharedPtr<FJsonObject> Body, EEverMemOSResponseMode Mode, FOnHttpJsonResponse OnComplete)
 {
-	FHttpRequestRef Request = CreateRequest(TEXT("POST"), Endpoint, Body);
-	ActiveRequests.Add(Request);
-
-	TWeakPtr<FEverMemOSHttpClient> WeakSelf = AsShared();
-	Request->OnProcessRequestComplete().BindLambda(
-		[WeakSelf, Mode, OnComplete, Endpoint, Body](FHttpRequestPtr Req, FHttpResponsePtr Resp, bool bSuccess)
-		{
-			if (TSharedPtr<FEverMemOSHttpClient> Self = WeakSelf.Pin())
-			{
-				Self->ProcessResponse(Req, Resp, bSuccess, Mode, OnComplete, 0, TEXT("POST"), Endpoint, Body);
-			}
-		});
-
-	Request->ProcessRequest();
-	return Request;
+	return SendWithBody(TEXT("POST"), Endpoint, Body, Mode, OnComplete);
 }
 
 FHttpRequestRef FEverMemOSHttpClient::Delete(const FString& Endpoint,
 	TSharedPtr<FJsonObject> Body, EEverMemOSResponseMode Mode, FOnHttpJsonResponse OnComplete)
 {
-	FHttpRequestRef Request = CreateRequest(TEXT("DELETE"), Endpoint, Body);
-	ActiveRequests.Add(Request);
-
-	TWeakPtr<FEverMemOSHttpClient> WeakSelf = AsShared();
-	Request->OnProcessRequestComplete().BindLambda(
-		[WeakSelf, Mode, OnComplete, Endpoint, Body](FHttpRequestPtr Req, FHttpResponsePtr Resp, bool bSuccess)
-		{
-			if (TSharedPtr<FEverMemOSHttpClient> Self = WeakSelf.Pin())
-			{
-				Self->ProcessResponse(Req, Resp, bSuccess, Mode, OnComplete, 0, TEXT("DELETE"), Endpoint, Body);
-			}
-		});
-
-	Request->ProcessRequest();
-	return Request;
+	return SendWithBody(TEXT("DELETE"), Endpoint, Body, Mode, OnComplete);
 }
 
 FHttpRequestRef FEverMemOSHttpClient::Patch(const FString& Endpoint,
 	TSharedPtr<FJsonObject> Body, EEverMemOSResponseMode Mode, FOnHttpJsonResponse OnComplete)
 {
-	FHttpRequestRef Request = CreateRequest(TEXT("PATCH"), Endpoint, Body);
-	ActiveRequests.Add(Request);
-
-	TWeakPtr<FEverMemOSHttpClient> WeakSelf = AsShared();
-	Request->OnProcessRequestComplete().BindLambda(
-		[WeakSelf, Mode, OnComplete, Endpoint, Body](FHttpRequestPtr Req, FHttpResponsePtr Resp, bool bSuccess)
-		{
-			if (TSharedPtr<FEverMemOSHttpClient> Self = WeakSelf.Pin())
-			{
-				Self->ProcessResponse(Req, Resp, bSuccess, Mode, OnComplete, 0, TEXT("PATCH"), Endpoint, Body);
-			}
-		});
-
-	Request->ProcessRequest();
-	return Request;
+	return SendWithBody(TEXT("PATCH"), Endpoint, Body, Mode, OnComplete);
 }
 
 void FEverMemOSHttpClient::CancelRequest(FHttpRequestRef Request)
@@ -340,15 +253,7 @@ void FEverMemOSHttpClient::ProcessResponse(FHttpRequestPtr Request, FHttpRespons
 	const FString& Verb, const FString& Endpoint,
 	TSharedPtr<FJsonObject> Body)
 {
-	// Remove from tracked requests
-	for (int32 i = ActiveRequests.Num() - 1; i >= 0; --i)
-	{
-		if (&ActiveRequests[i].Get() == Request.Get())
-		{
-			ActiveRequests.RemoveAt(i);
-			break;
-		}
-	}
+	RemoveActiveRequest(Request);
 
 	if (!bConnectedSuccessfully || !Response.IsValid())
 	{
@@ -388,7 +293,7 @@ void FEverMemOSHttpClient::ProcessResponse(FHttpRequestPtr Request, FHttpRespons
 				return Item.Handle == HandleCopy;
 			});
 
-			FHttpRequestRef NewRequest = Self->CreateRequest(Verb, Endpoint, Body);
+			FHttpRequestRef NewRequest = Self->CreateRequestInternal(Verb, Self->BuildURL(Endpoint), Body);
 			Self->ActiveRequests.Add(NewRequest);
 
 			TWeakPtr<FEverMemOSHttpClient> WeakSelfInner = WeakSelf;

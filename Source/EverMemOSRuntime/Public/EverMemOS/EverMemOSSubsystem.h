@@ -75,20 +75,6 @@ public:
 	/** Create/update conversation metadata */
 	void SetConversationMetadata(const FEverMemOSConvoMetaUpsertRequest& Request, FOnConvoMetaComplete OnComplete);
 
-	// --- Blueprint API ---
-
-	UFUNCTION(BlueprintCallable, Category = "EverMemOS|System",
-		meta = (DeprecatedFunction, DeprecationMessage = "Use the EverMemOS HealthCheck async Blueprint node instead."))
-	void K2_HealthCheck();
-
-	UFUNCTION(BlueprintCallable, Category = "EverMemOS|Memory",
-		meta = (DeprecatedFunction, DeprecationMessage = "Use the EverMemOS Memorize async Blueprint node instead."))
-	void K2_Memorize(const FEverMemOSMemorizeRequest& Request);
-
-	UFUNCTION(BlueprintCallable, Category = "EverMemOS|Memory",
-		meta = (DeprecatedFunction, DeprecationMessage = "Use the EverMemOS SearchMemories async Blueprint node instead."))
-	void K2_Search(const FEverMemOSSearchParams& Params);
-
 	/** Switch deployment profile at runtime (rebuilds the HTTP client) */
 	UFUNCTION(BlueprintCallable, Category = "EverMemOS|Connection")
 	void SetDeploymentProfile(EEverMemOSDeploymentProfile Profile);

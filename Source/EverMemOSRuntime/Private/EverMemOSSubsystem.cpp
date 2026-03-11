@@ -182,11 +182,10 @@ TSharedPtr<IEverMemOSAuthProvider> UEverMemOSSubsystem::CreateAuthProvider() con
 
 // --- Health Check ---
 
-	void UEverMemOSSubsystem::HealthCheck(FOnHealthCheckComplete OnComplete)
-	{
-		if (bIsShuttingDown) return;
+void UEverMemOSSubsystem::HealthCheck(FOnHealthCheckComplete OnComplete)
+{
+	if (bIsShuttingDown) return;
 
-	// Root health endpoint (does not use /api/{version} prefix)
 	HttpClient->GetRaw(TEXT("/health"), EEverMemOSResponseMode::Bare,
 		FOnHttpJsonResponse::CreateLambda(
 			[this, OnComplete](TSharedPtr<FJsonObject> Result, const FEverMemOSError& Error)
@@ -209,11 +208,6 @@ TSharedPtr<IEverMemOSAuthProvider> UEverMemOSSubsystem::CreateAuthProvider() con
 
 				OnComplete.ExecuteIfBound(Response, FEverMemOSError::NoError());
 			}));
-}
-
-void UEverMemOSSubsystem::K2_HealthCheck()
-{
-	UE_LOG(LogEverMemOS, Warning, TEXT("K2_HealthCheck is deprecated. Use the HealthCheck async Blueprint node instead."));
 }
 
 // --- Core Memory: Add ---
@@ -276,7 +270,7 @@ void UEverMemOSSubsystem::AddMemory(const FEverMemOSAddMemoryRequest& Request, F
 			}));
 }
 
-	// --- Memorize ---
+// --- Memorize ---
 
 void UEverMemOSSubsystem::Memorize(const FEverMemOSMemorizeRequest& Request, FOnMemorizeComplete OnComplete)
 {
@@ -318,12 +312,6 @@ void UEverMemOSSubsystem::Memorize(const FEverMemOSMemorizeRequest& Request, FOn
 
 				OnComplete.ExecuteIfBound(MemResult, FEverMemOSError::NoError());
 			}));
-}
-
-void UEverMemOSSubsystem::K2_Memorize(const FEverMemOSMemorizeRequest& Request)
-{
-	(void)Request;
-	UE_LOG(LogEverMemOS, Warning, TEXT("K2_Memorize is deprecated. Use the Memorize async Blueprint node instead."));
 }
 
 // --- Search ---
@@ -400,12 +388,6 @@ void UEverMemOSSubsystem::Search(const FEverMemOSSearchParams& Params, FOnSearch
 
 				OnComplete.ExecuteIfBound(SearchResult, FEverMemOSError::NoError());
 			}));
-}
-
-void UEverMemOSSubsystem::K2_Search(const FEverMemOSSearchParams& Params)
-{
-	(void)Params;
-	UE_LOG(LogEverMemOS, Warning, TEXT("K2_Search is deprecated. Use the SearchMemories async Blueprint node instead."));
 }
 
 // --- Core Memory: Get ---
@@ -492,28 +474,28 @@ void UEverMemOSSubsystem::DeleteMemories(const FEverMemOSDeleteMemoriesRequest& 
 					return;
 				}
 
-					FEverMemOSDeleteMemoriesResult Out;
-					if (Result.IsValid())
+				FEverMemOSDeleteMemoriesResult Out;
+				if (Result.IsValid())
+				{
+					const TSharedPtr<FJsonObject>* ResultObj = nullptr;
+					if (Result->TryGetObjectField(TEXT("Result"), ResultObj) && ResultObj && ResultObj->IsValid())
 					{
-						const TSharedPtr<FJsonObject>* ResultObj = nullptr;
-						if (Result->TryGetObjectField(TEXT("Result"), ResultObj) && ResultObj && ResultObj->IsValid())
-						{
-							(*ResultObj)->TryGetNumberField(TEXT("Count"), Out.Count);
+						(*ResultObj)->TryGetNumberField(TEXT("Count"), Out.Count);
 
-							const TArray<TSharedPtr<FJsonValue>>* FiltersArray = nullptr;
-							if ((*ResultObj)->TryGetArrayField(TEXT("Filters"), FiltersArray) && FiltersArray)
+						const TArray<TSharedPtr<FJsonValue>>* FiltersArray = nullptr;
+						if ((*ResultObj)->TryGetArrayField(TEXT("Filters"), FiltersArray) && FiltersArray)
+						{
+							for (const TSharedPtr<FJsonValue>& Val : *FiltersArray)
 							{
-								for (const TSharedPtr<FJsonValue>& Val : *FiltersArray)
+								FString S;
+								if (Val.IsValid() && Val->TryGetString(S))
 								{
-									FString S;
-									if (Val.IsValid() && Val->TryGetString(S))
-									{
-										Out.Filters.Add(S);
-									}
+									Out.Filters.Add(S);
 								}
 							}
 						}
 					}
+				}
 
 				OnComplete.ExecuteIfBound(Out, FEverMemOSError::NoError());
 			}));

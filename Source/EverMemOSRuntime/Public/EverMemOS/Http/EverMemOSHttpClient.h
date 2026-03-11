@@ -60,6 +60,9 @@ public:
 	FHttpRequestRef Patch(const FString& Endpoint, TSharedPtr<FJsonObject> Body,
 		EEverMemOSResponseMode Mode, FOnHttpJsonResponse OnComplete);
 
+	/** Remove a request from the active tracking list */
+	void RemoveActiveRequest(FHttpRequestPtr Request);
+
 	/** Cancel a specific request */
 	void CancelRequest(FHttpRequestRef Request);
 
@@ -70,9 +73,9 @@ public:
 	const TArray<FHttpRequestRef>& GetActiveRequests() const { return ActiveRequests; }
 
 private:
-	FHttpRequestRef CreateRequest(const FString& Verb, const FString& Endpoint,
-		TSharedPtr<FJsonObject> Body);
-	FHttpRequestRef CreateRawRequest(const FString& Verb, const FString& Path, TSharedPtr<FJsonObject> Body);
+	FHttpRequestRef CreateRequestInternal(const FString& Verb, const FString& URL, TSharedPtr<FJsonObject> Body);
+	FHttpRequestRef SendWithBody(const FString& Verb, const FString& Endpoint,
+		TSharedPtr<FJsonObject> Body, EEverMemOSResponseMode Mode, FOnHttpJsonResponse OnComplete);
 	FString BuildURL(const FString& Endpoint, const TMap<FString, FString>& QueryParams = {}) const;
 	FString BuildURLRaw(const FString& Path) const;
 	void ProcessResponse(FHttpRequestPtr Request, FHttpResponsePtr Response,
