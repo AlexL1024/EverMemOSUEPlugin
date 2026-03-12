@@ -2,6 +2,8 @@
 
 Unreal Engine plugin for [EverMemOS](https://evermind.ai) — Memory-as-a-Service for AI-powered games. Give your NPCs persistent memory so they remember what players said, did, and experienced.
 
+[![Demo Video](https://img.youtube.com/vi/hOnPND4kBew/maxresdefault.jpg)](https://youtu.be/hOnPND4kBew)
+
 ## Two Deployment Modes
 
 This plugin supports **two deployment modes** that you can switch between at any time — even at runtime:
