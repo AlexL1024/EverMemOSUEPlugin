@@ -12,7 +12,7 @@ This plugin supports **two deployment modes** that you can switch between at any
 
 | Mode | Base URL | API Version | Auth | Best For |
 |------|----------|-------------|------|----------|
-| **Cloud** | `https://api.evermind.ai` | v0 | Bearer Token / HMAC | Production, multiplayer, cloud-hosted games |
+| **Cloud** | `https://api.evermind.ai` | v0 | Bearer Token | Production, multiplayer, cloud-hosted games |
 | **Local** | `http://localhost:1995` | v1 | None | Development, offline play, single-player, privacy-sensitive use cases |
 
 Both modes share the **exact same API surface** — your Blueprints and C++ code work identically regardless of which mode is active. Simply switch the Deployment Profile and everything else adapts automatically (URL, API version, authentication).
