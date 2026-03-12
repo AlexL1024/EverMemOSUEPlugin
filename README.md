@@ -16,7 +16,7 @@ Both modes share the **exact same API surface** — your Blueprints and C++ code
 ## Requirements
 
 - Unreal Engine 5.3+
-- **Cloud mode**: An EverMemOS API key (Bearer Token or HMAC Secret)
+- **Cloud mode**: An [EverMemOS API key](https://docs.evermind.ai/)
 - **Local mode**: A running EverMemOS local server on `localhost:1995`
 
 ## Installation
