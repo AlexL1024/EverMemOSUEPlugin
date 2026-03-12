@@ -2,12 +2,22 @@
 
 Unreal Engine plugin for [EverMemOS](https://evermind.ai) — Memory-as-a-Service for AI-powered games. Give your NPCs persistent memory so they remember what players said, did, and experienced.
 
-Supports both **Cloud** (api.evermind.ai) and **Local** (localhost) deployment.
+## Two Deployment Modes
+
+This plugin supports **two deployment modes** that you can switch between at any time — even at runtime:
+
+| Mode | Base URL | API Version | Auth | Best For |
+|------|----------|-------------|------|----------|
+| **Cloud** | `https://api.evermind.ai` | v0 | Bearer Token / HMAC | Production, multiplayer, cloud-hosted games |
+| **Local** | `http://localhost:1995` | v1 | None | Development, offline play, single-player, privacy-sensitive use cases |
+
+Both modes share the **exact same API surface** — your Blueprints and C++ code work identically regardless of which mode is active. Simply switch the Deployment Profile and everything else adapts automatically (URL, API version, authentication).
 
 ## Requirements
 
 - Unreal Engine 5.3+
-- For Local mode: a running EverMemOS local server on `localhost:1995`
+- **Cloud mode**: An EverMemOS API key (Bearer Token or HMAC Secret)
+- **Local mode**: A running EverMemOS local server on `localhost:1995`
 
 ## Installation
 
